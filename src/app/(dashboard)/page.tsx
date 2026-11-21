@@ -31,10 +31,10 @@ export default async function DashboardPage() {
     prisma.domain.count({ where: domainsWhere }),
     prisma.landing.count({ where: landingsWhere }),
     prisma.offer.count({ where: offersWhere }),
-    prisma.cloakJob.count({
+    prisma.deployJob.count({
       where: { ...jobsWhere, status: "success", startedAt: { gte: startOfToday } },
     }),
-    prisma.cloakJob.findMany({
+    prisma.deployJob.findMany({
       where: { ...jobsWhere, startedAt: { gte: subDays(new Date(), 14) } },
       select: { startedAt: true, status: true },
     }),

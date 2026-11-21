@@ -7,7 +7,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   try {
     await requireRole("admin");
     const { id } = await ctx.params;
-    const cur = await prisma.cloakerScript.findUnique({ where: { id } });
+    const cur = await prisma.entryScript.findUnique({ where: { id } });
     if (!cur) return notFound();
     const data = await fs.readFile(cur.filePath);
     return new Response(new Uint8Array(data), {

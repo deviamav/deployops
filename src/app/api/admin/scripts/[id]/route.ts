@@ -8,7 +8,7 @@ import { getClientIp, logEvent } from "@/lib/audit";
 const Schema = z.object({
   name: z.string().optional(),
   notes: z.string().nullable().optional(),
-  engine: z.enum(["palladium", "palladium_redirect", "cubbe"]).optional(),
+  engine: z.enum(["php_gateway", "php_redirect", "html_gateway"]).optional(),
   isDefault: z.boolean().optional(),
 });
 
@@ -17,17 +17,17 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     const me = await requireRole("admin");
     const { id } = await ctx.params;
     const body = Schema.parse(await req.json());
-    const cur = await prisma.cloakerScript.findUnique({ where: { id } });
+    const cur = await prisma.entryScript.findUnique({ where: { id } });
     if (!cur) return notFound();
 
     await prisma.$transaction(async (tx) => {
       if (body.isDefault) {
-        await tx.cloakerScript.updateMany({
+        await tx.entryScript.updateMany({
           where: { geoId: cur.geoId, isDefault: true },
           data: { isDefault: false },
         });
       }
-      await tx.cloakerScript.update({
+      await tx.entryScript.update({
         where: { id },
         data: body,
       });
@@ -43,9 +43,9 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }
   try {
     const me = await requireRole("admin");
     const { id } = await ctx.params;
-    const cur = await prisma.cloakerScript.findUnique({ where: { id } });
+    const cur = await prisma.entryScript.findUnique({ where: { id } });
     if (!cur) return notFound();
-    await prisma.cloakerScript.delete({ where: { id } });
+    await prisma.entryScript.delete({ where: { id } });
     await fs.unlink(cur.filePath).catch(() => {});
     await logEvent({ userId: me.id, action: "script.delete", target: id, ip: getClientIp(req) });
     return ok({ ok: true });

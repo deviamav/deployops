@@ -20,8 +20,8 @@ import {
 
 export type LogFn = (line: string) => void;
 export type PixelPlatform = "google" | "facebook" | "tiktok";
-/** palladium = content.php + reffo/per · palladium_redirect = content.php only · cubbe = offer/ + white/ */
-export type CloakerEngineKind = "palladium" | "palladium_redirect" | "cubbe";
+/** php_gateway = content.php + reffo/per · php_redirect = content.php only · html_gateway = offer/ + white/ */
+export type EntryEngineKind = "php_gateway" | "php_redirect" | "html_gateway";
 
 interface EngineOpts {
   ssh: NodeSSH;
@@ -31,7 +31,7 @@ interface EngineOpts {
   /** Analytics preset: google | facebook | tiktok */
   pixelPlatform?: PixelPlatform | null;
   /** Entry-script layout */
-  cloakerEngine?: CloakerEngineKind | null;
+  entryScriptEngine?: EntryEngineKind | null;
   emit: LogFn;
   /** Callback: fired when the engine detects which index file existed before the deploy. */
   onOriginalIndexDetected?: (kind: "html" | "php") => void | Promise<void>;
@@ -48,7 +48,7 @@ export class DeployEngine {
   private webUser: string;
   private emit: LogFn;
   private pixelPlatform: PixelPlatform;
-  private cloakerEngine: CloakerEngineKind;
+  private entryScriptEngine: EntryEngineKind;
   private originalIndex: "html" | "php" | null;
   private onOriginalIndexDetected?: (kind: "html" | "php") => void | Promise<void>;
 
@@ -61,12 +61,12 @@ export class DeployEngine {
       opts.pixelPlatform === "facebook" || opts.pixelPlatform === "tiktok"
         ? opts.pixelPlatform
         : "google";
-    this.cloakerEngine =
-      opts.cloakerEngine === "cubbe"
-        ? "cubbe"
-        : opts.cloakerEngine === "palladium_redirect"
-          ? "palladium_redirect"
-          : "palladium";
+    this.entryScriptEngine =
+      opts.entryScriptEngine === "html_gateway"
+        ? "html_gateway"
+        : opts.entryScriptEngine === "php_redirect"
+          ? "php_redirect"
+          : "php_gateway";
     const rawWebUser = opts.webUser?.trim() || detectWebUser(this.webRoot);
     // SECURITY: webUser ends up in `chown user:user ...` without shellQuote (because of the colon),
     // so it is validated with a strict Unix-name regex. Without this, `webUser=";rm -rf /;#"`
@@ -90,24 +90,24 @@ export class DeployEngine {
     this.onOriginalIndexDetected = opts.onOriginalIndexDetected;
   }
 
-  async deployPackOnly(opts: { offerZipPath: string; cloakerScriptPath: string }): Promise<void> {
-    if (this.cloakerEngine === "cubbe") {
-      await this.cubbePrepareWhite();
+  async deployPackOnly(opts: { offerZipPath: string; entryScriptPath: string }): Promise<void> {
+    if (this.entryScriptEngine === "html_gateway") {
+      await this.html_gatewayPrepareWhite();
       await this.deployOfferCubbe(opts.offerZipPath, "offer", "/offer/index.php");
-      await this.uploadCloakerAsIndex(opts.cloakerScriptPath);
+      await this.uploadEntryScriptAsIndex(opts.entryScriptPath);
       await this.runCmd(`chmod 644 ${remoteJoin(this.webRoot, "index.php")}`);
       await this.runVerifyCubbe();
       this.emit("✓ done (split layout)");
       return;
     }
 
-    if (this.cloakerEngine === "palladium_redirect") {
-      await this.deployGatewayOnly(opts.cloakerScriptPath);
+    if (this.entryScriptEngine === "php_redirect") {
+      await this.deployGatewayOnly(opts.entryScriptPath);
       return;
     }
 
     await this.renameIndexToContent();
-    await this.uploadCloakerAsIndex(opts.cloakerScriptPath);
+    await this.uploadEntryScriptAsIndex(opts.entryScriptPath);
     await this.deployOffer(opts.offerZipPath, "reffo", "/reffo/bn.php");
     await this.runCmd(`chmod 644 ${remoteJoin(this.webRoot, "index.php")}`);
     await this.runVerify();
@@ -124,16 +124,16 @@ export class DeployEngine {
     const wr = shellQuote(this.webRoot);
     const layout = await this.ssh.execCommand(
       `cd ${wr} && ` +
-        `if [ -d white ]; then echo cubbe; ` +
-        `elif [ -f contact.php ] && [ ! -f content.php ]; then echo palladium_redirect_legacy; ` +
-        `else echo palladium; fi`,
+        `if [ -d white ]; then echo html_gateway; ` +
+        `elif [ -f contact.php ] && [ ! -f content.php ]; then echo php_redirect_legacy; ` +
+        `else echo php_gateway; fi`,
     );
     const kind = layout.stdout.trim();
-    if (kind === "cubbe") {
+    if (kind === "html_gateway") {
       await this.rollbackSplitLayout();
       return;
     }
-    if (kind === "palladium_redirect_legacy") {
+    if (kind === "php_redirect_legacy") {
       await this.rollbackFromBackup("contact.php");
       return;
     }
@@ -147,29 +147,29 @@ export class DeployEngine {
     landingZipPath: string;
     offerZipPath: string;
     landingName: string;
-    cloakerScriptPath: string;
+    entryScriptPath: string;
   }): Promise<void> {
-    if (this.cloakerEngine === "cubbe") {
-      await this.cubbePrepareWhite();
+    if (this.entryScriptEngine === "html_gateway") {
+      await this.html_gatewayPrepareWhite();
       // Split layout: template → offer/, content pack → offer/money/
       await this.deployLandingCubbe(opts.landingZipPath, opts.landingName);
       await this.deployOfferCubbe(opts.offerZipPath, "offer/money", "/offer/money/index.php");
-      await this.uploadCloakerAsIndex(opts.cloakerScriptPath);
+      await this.uploadEntryScriptAsIndex(opts.entryScriptPath);
       await this.runCmd(`chmod 644 ${remoteJoin(this.webRoot, "index.php")}`);
       await this.runVerifyCubbe();
       this.emit("✓ done (split layout, template + content pack)");
       return;
     }
 
-    if (this.cloakerEngine === "palladium_redirect") {
+    if (this.entryScriptEngine === "php_redirect") {
       // Gateway only: content.php + entry script, no template / content pack.
-      this.emit("  · palladium_redirect: skip landing/offer ZIP");
-      await this.deployGatewayOnly(opts.cloakerScriptPath);
+      this.emit("  · php_redirect: skip landing/offer ZIP");
+      await this.deployGatewayOnly(opts.entryScriptPath);
       return;
     }
 
     await this.renameIndexToContent();
-    await this.uploadCloakerAsIndex(opts.cloakerScriptPath);
+    await this.uploadEntryScriptAsIndex(opts.entryScriptPath);
 
     await this.deployOffer(opts.offerZipPath, "per", "/per/bn.php");
     await this.deployLanding(opts.landingZipPath, opts.landingName);
@@ -179,9 +179,9 @@ export class DeployEngine {
   }
 
   /** Gateway only: index.* → content.php, entry script → index.php (no reffo/per). */
-  private async deployGatewayOnly(cloakerScriptPath: string): Promise<void> {
+  private async deployGatewayOnly(entryScriptPath: string): Promise<void> {
     await this.renameIndexToContent();
-    await this.uploadCloakerAsIndex(cloakerScriptPath);
+    await this.uploadEntryScriptAsIndex(entryScriptPath);
     await this.runCmd(`chmod 644 ${remoteJoin(this.webRoot, "index.php")}`);
     await this.runVerifyRedirect();
     this.emit("✓ done (gateway only)");
@@ -217,14 +217,14 @@ export class DeployEngine {
   }
 
   /** Split layout: move everything from webRoot into white/ (except white/ and offer/). */
-  private async cubbePrepareWhite(): Promise<void> {
+  private async html_gatewayPrepareWhite(): Promise<void> {
     this.emit("step: split layout — move the original site into white/");
     const wr = shellQuote(this.webRoot);
     // Portable POSIX (no bash shopt): find + mv
     const cmd =
       `cd ${wr} && ` +
       `if [ -d white ] && [ -f index.php ] && [ ! -f content.php ]; then ` +
-      `  echo "already-cubbe"; exit 0; ` +
+      `  echo "already-html_gateway"; exit 0; ` +
       `fi && ` +
       `mkdir -p white && ` +
       `find . -mindepth 1 -maxdepth 1 ! -name white ! -name offer -exec mv -t white/ {} + && ` +
@@ -235,7 +235,7 @@ export class DeployEngine {
     const res = await this.ssh.execCommand(cmd);
     this.appendIfOutput(res.stdout, res.stderr);
     if (res.code !== 0)
-      throw new Error(`cubbePrepareWhite: ${res.stderr || res.stdout || "failed"}`);
+      throw new Error(`html_gatewayPrepareWhite: ${res.stderr || res.stdout || "failed"}`);
 
     const out = res.stdout.trim();
     let detected: "html" | "php" | null = null;
@@ -445,7 +445,7 @@ export class DeployEngine {
     }
   }
 
-  private async uploadCloakerAsIndex(localPhp: string): Promise<void> {
+  private async uploadEntryScriptAsIndex(localPhp: string): Promise<void> {
     this.emit(`step: upload entry script → ${this.webRoot}/index.php`);
 
     const remoteIndex = remoteJoin(this.webRoot, "index.php");
@@ -559,7 +559,7 @@ export class DeployEngine {
   }
 
   private async uploadAndExtract(localZip: string, subdir: string): Promise<void> {
-    const tmpDir = `/tmp/cloak-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const tmpDir = `/tmp/deploy-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const target = remoteJoin(this.webRoot, subdir);
 
     // The ZIP used to be repacked through adm-zip (sanitize) because of `fonts/../` entries in site-builder exports.

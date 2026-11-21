@@ -33,8 +33,8 @@ import { GeoFlag } from "@/components/geo-flag";
 interface Domain {
   id: string;
   name: string;
-  /** DB enum CloakType: offer_only = content pack only, land_offer = template + content pack */
-  cloakType: "offer_only" | "land_offer";
+  /** DB enum DeployMode: pack_only = content pack only, template_and_pack = template + content pack */
+  deployMode: "pack_only" | "template_and_pack";
   status: string;
   server: { host: string };
 }
@@ -54,20 +54,20 @@ interface EntryScript {
   name: string;
   isDefault: boolean;
   geoId: string;
-  /** DB enum CloakerEngine — shown in the UI as a file layout. */
-  engine?: "palladium" | "palladium_redirect" | "cubbe";
+  /** DB enum EntryEngine — shown in the UI as a file layout. */
+  engine?: "php_gateway" | "php_redirect" | "html_gateway";
 }
 
-type DeployType = "offer_only" | "land_offer";
+type DeployType = "pack_only" | "template_and_pack";
 type AnalyticsPreset = "google" | "facebook" | "tiktok";
 type JobStatus = "idle" | "running" | "success" | "failed";
 /** standard = template + content pack + entry script · gateway = market + entry script only */
 type DeployMode = "standard" | "gateway";
 
 const LAYOUT_LABEL: Record<string, string> = {
-  palladium: "Standard layout",
-  cubbe: "Split layout",
-  palladium_redirect: "Gateway only",
+  php_gateway: "Standard layout",
+  html_gateway: "Split layout",
+  php_redirect: "Gateway only",
 };
 
 export default function DeployPage() {
@@ -90,7 +90,7 @@ function DeployWizard() {
     params.get("domainId") ? [params.get("domainId")!] : [],
   );
   const [mode, setMode] = useState<DeployMode>("standard");
-  const [type, setType] = useState<DeployType>("offer_only");
+  const [type, setType] = useState<DeployType>("pack_only");
   const [analytics, setAnalytics] = useState<AnalyticsPreset>("google");
   const [templateId, setTemplateId] = useState<string | null>(null);
   const [packId, setPackId] = useState<string | null>(null);
@@ -121,8 +121,8 @@ function DeployWizard() {
   const scripts = useMemo(() => {
     if (!marketId) return [];
     const forMarket = allScripts.filter((s) => s.geoId === marketId);
-    if (isGateway) return forMarket.filter((s) => s.engine === "palladium_redirect");
-    return forMarket.filter((s) => s.engine !== "palladium_redirect");
+    if (isGateway) return forMarket.filter((s) => s.engine === "php_redirect");
+    return forMarket.filter((s) => s.engine !== "php_redirect");
   }, [allScripts, marketId, isGateway]);
 
   async function reload() {
@@ -141,7 +141,7 @@ function DeployWizard() {
   }, []);
 
   useEffect(() => {
-    if (selectedDomain && !isGateway) setType(selectedDomain.cloakType);
+    if (selectedDomain && !isGateway) setType(selectedDomain.deployMode);
   }, [selectedDomain, isGateway]);
 
   // Changing the market invalidates market-bound selections.
@@ -169,7 +169,7 @@ function DeployWizard() {
   }, [isGateway]);
 
   async function launchOne(domainId: string): Promise<boolean> {
-    // Field names follow the stable API contract (cloakerScriptId / offerId / landingId).
+    // Field names follow the stable API contract (entryScriptId / offerId / landingId).
     const res = await fetch("/api/deploy", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -178,19 +178,19 @@ function DeployWizard() {
           ? {
               domainId,
               geoId: marketId,
-              cloakerScriptId: scriptId,
+              entryScriptId: scriptId,
               offerId: null,
-              cloakType: "offer_only",
+              deployMode: "pack_only",
               pixelPlatform: "google",
             }
           : {
               domainId,
               geoId: marketId,
-              cloakerScriptId: scriptId,
+              entryScriptId: scriptId,
               offerId: packId,
-              landingId: type === "land_offer" ? templateId : null,
+              landingId: type === "template_and_pack" ? templateId : null,
               landingName: templateName || undefined,
-              cloakType: type,
+              deployMode: type,
               pixelPlatform: analytics,
             },
       ),
@@ -259,7 +259,7 @@ function DeployWizard() {
       !!marketId &&
       !!packId &&
       !!scriptId &&
-      (type === "offer_only" || !!templateId) &&
+      (type === "pack_only" || !!templateId) &&
       jobStatus !== "running";
 
   const statusTone =
@@ -394,7 +394,7 @@ function DeployWizard() {
               <SectionHead
                 step="03"
                 title="Template"
-                hint={type === "land_offer" ? `${templates.length} for this market` : "optional"}
+                hint={type === "template_and_pack" ? `${templates.length} for this market` : "optional"}
               />
               <RadioGroup
                 value={type}
@@ -402,20 +402,20 @@ function DeployWizard() {
                 className="grid grid-cols-1 gap-3 sm:grid-cols-2"
               >
                 <ChoiceTile
-                  value="offer_only"
-                  active={type === "offer_only"}
+                  value="pack_only"
+                  active={type === "pack_only"}
                   title="Content pack only"
                   desc="Deploy the content pack without a site template"
                 />
                 <ChoiceTile
-                  value="land_offer"
-                  active={type === "land_offer"}
+                  value="template_and_pack"
+                  active={type === "template_and_pack"}
                   title="Template + content pack"
                   desc="Deploy a site template together with a content pack"
                 />
               </RadioGroup>
 
-              {type === "land_offer" && (
+              {type === "template_and_pack" && (
                 <Field label="Site template" hint={`for this market: ${templates.length}`}>
                   <Select value={templateId ?? undefined} onValueChange={setTemplateId}>
                     <SelectTrigger className="h-9">
@@ -539,7 +539,7 @@ function DeployWizard() {
                   {scripts.map((s) => (
                     <SelectItem key={s.id} value={s.id}>
                       {s.isDefault && "★ "}
-                      {s.name} · {LAYOUT_LABEL[s.engine ?? "palladium"]}
+                      {s.name} · {LAYOUT_LABEL[s.engine ?? "php_gateway"]}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -659,7 +659,7 @@ function DeployWizard() {
               }
             />
             <SummaryRow label="Mode" value={isGateway ? "Gateway only" : "Full deploy"} />
-            {!isGateway && type === "land_offer" && (
+            {!isGateway && type === "template_and_pack" && (
               <SummaryRow label="Template" value={templates.find((t) => t.id === templateId)?.name} />
             )}
             {!isGateway && (

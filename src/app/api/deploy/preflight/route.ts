@@ -3,7 +3,7 @@ import { requireSession, visibilityWhere } from "@/lib/rbac";
 import { handleError, badRequest, ok } from "@/lib/http";
 
 /**
- * Preflight: рекомендує geoId і список валідних cloaker-скриптів за обраним
+ * Preflight: рекомендує geoId і список валідних entryScript-скриптів за обраним
  * geo. Сценарії - розділ 4.4 ТЗ.
  */
 export async function GET(req: Request) {
@@ -39,18 +39,18 @@ export async function GET(req: Request) {
       landing && landing.geoId === offer.geoId ? landing.geoId : offer.geoId;
     const geoMismatch = !!landing && landing.geoId !== offer.geoId;
 
-    const validCloakers = await prisma.cloakerScript.findMany({
+    const validEntryScripts = await prisma.entryScript.findMany({
       where: { geoId: suggestedGeoId },
       orderBy: [{ isDefault: "desc" }, { uploadedAt: "desc" }],
     });
-    const defaultCloakerId = validCloakers.find((c) => c.isDefault)?.id ?? null;
+    const defaultEntryScriptId = validEntryScripts.find((c) => c.isDefault)?.id ?? null;
 
     return ok({
-      domain: { id: domain.id, name: domain.name, cloakType: domain.cloakType },
+      domain: { id: domain.id, name: domain.name, deployMode: domain.deployMode },
       suggestedGeoId,
       geoMismatch,
-      validCloakers,
-      defaultCloakerId,
+      validEntryScripts,
+      defaultEntryScriptId,
     });
   } catch (e) {
     return handleError(e);

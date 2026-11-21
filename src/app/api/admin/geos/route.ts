@@ -12,7 +12,7 @@ export async function GET() {
       orderBy: { code: "asc" },
       include: {
         _count: {
-          select: { landings: true, offers: true, cloakers: true, jobs: true },
+          select: { landings: true, offers: true, entryScripts: true, jobs: true },
         },
       },
     });

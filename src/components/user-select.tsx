@@ -15,7 +15,7 @@ interface UserRow {
   id: string;
   email: string;
   name: string | null;
-  role: "admin" | "team_lead" | "buyer";
+  role: "admin" | "team_lead" | "operator";
   group: { id: string; name: string } | null;
 }
 

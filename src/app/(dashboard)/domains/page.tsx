@@ -58,9 +58,9 @@ interface DomainRow {
   id: string;
   name: string;
   webRoot: string;
-  cloakType: "offer_only" | "land_offer";
+  deployMode: "pack_only" | "template_and_pack";
   status: string;
-  lastCloakAt: string | null;
+  lastDeployAt: string | null;
   server: {
     id: string;
     host: string;
@@ -84,7 +84,7 @@ interface ServerRow {
 }
 
 interface MeInfo {
-  role: "admin" | "team_lead" | "buyer";
+  role: "admin" | "team_lead" | "operator";
   id: string;
 }
 
@@ -320,8 +320,8 @@ export default function DomainsPage() {
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Badge variant={d.cloakType === "offer_only" ? "secondary" : "cyan"}>
-                    {d.cloakType === "offer_only" ? "pack" : "template+pack"}
+                  <Badge variant={d.deployMode === "pack_only" ? "secondary" : "cyan"}>
+                    {d.deployMode === "pack_only" ? "pack" : "template+pack"}
                   </Badge>
                 </TableCell>
                 <TableCell>
@@ -433,8 +433,8 @@ export default function DomainsPage() {
             document.querySelector("[data-bulk-server]") as HTMLInputElement | null
           )?.value;
           const ct = (
-            document.querySelector("[data-bulk-cloaktype]:checked") as HTMLInputElement | null
-          )?.value as "offer_only" | "land_offer" | undefined;
+            document.querySelector("[data-bulk-deploytype]:checked") as HTMLInputElement | null
+          )?.value as "pack_only" | "template_and_pack" | undefined;
           const ownerId = (
             document.querySelector("[data-bulk-domain-owner]") as HTMLInputElement | null
           )?.value;
@@ -446,7 +446,7 @@ export default function DomainsPage() {
             body: JSON.stringify({
               text,
               defaultServerId: serverId,
-              defaultCloakType: ct,
+              defaultDeployMode: ct,
               ownerId: ownerId || undefined,
             }),
           }).then((r) => r.json());
@@ -504,14 +504,14 @@ function BulkDomainControls({ servers }: { servers: ServerRow[] }) {
             <input
               type="radio"
               name="bulkct"
-              value="offer_only"
-              data-bulk-cloaktype
+              value="pack_only"
+              data-bulk-deploytype
               defaultChecked
             />
             <span>Content pack only</span>
           </label>
           <label className="flex items-center gap-2 text-sm">
-            <input type="radio" name="bulkct" value="land_offer" data-bulk-cloaktype />
+            <input type="radio" name="bulkct" value="template_and_pack" data-bulk-deploytype />
             <span>Template + content pack</span>
           </label>
         </div>
@@ -555,7 +555,7 @@ function DomainDialog({
     name: "",
     webRoot: "",
     webRootEdited: false,
-    cloakType: "offer_only" as "offer_only" | "land_offer",
+    deployMode: "pack_only" as "pack_only" | "template_and_pack",
     ownerId: null as string | null,
   });
   const [loading, setLoading] = useState(false);
@@ -568,7 +568,7 @@ function DomainDialog({
         name: initial.name,
         webRoot: initial.webRoot,
         webRootEdited: true,
-        cloakType: initial.cloakType,
+        deployMode: initial.deployMode,
         ownerId: initial.ownerId,
       });
     } else {
@@ -577,7 +577,7 @@ function DomainDialog({
         name: "",
         webRoot: "",
         webRootEdited: false,
-        cloakType: "offer_only",
+        deployMode: "pack_only",
         ownerId: null,
       });
     }
@@ -614,7 +614,7 @@ function DomainDialog({
       serverId: form.serverId,
       name: form.name,
       webRoot: form.webRoot,
-      cloakType: form.cloakType,
+      deployMode: form.deployMode,
     };
     if (form.ownerId) payload.ownerId = form.ownerId;
     const res = await fetch(url, {
@@ -683,13 +683,13 @@ function DomainDialog({
           <div className="space-y-1.5">
             <Label>Deploy type</Label>
             <RadioGroup
-              value={form.cloakType}
-              onValueChange={(v) => setForm({ ...form, cloakType: v as any })}
+              value={form.deployMode}
+              onValueChange={(v) => setForm({ ...form, deployMode: v as any })}
               className="grid grid-cols-2 gap-3"
             >
               {[
-                { v: "offer_only", l: "Content pack only" },
-                { v: "land_offer", l: "Template + content pack" },
+                { v: "pack_only", l: "Content pack only" },
+                { v: "template_and_pack", l: "Template + content pack" },
               ].map((o) => (
                 <label
                   key={o.v}

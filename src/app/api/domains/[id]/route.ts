@@ -14,7 +14,7 @@ const Schema = z
       .regex(/^\/[A-Za-z0-9._\-/]+$/u, "absolute posix path required")
       .refine((s) => !s.includes(".."), "no '..' allowed")
       .optional(),
-    cloakType: z.enum(["offer_only", "land_offer"]).optional(),
+    deployMode: z.enum(["pack_only", "template_and_pack"]).optional(),
     status: z.enum(["pending", "deployed", "failed"]).optional(),
     ownerId: z.string().optional(),
   })
@@ -44,7 +44,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     }
     if (body.name !== undefined) data.name = body.name;
     if (body.webRoot !== undefined) data.webRoot = body.webRoot;
-    if (body.cloakType !== undefined) data.cloakType = body.cloakType;
+    if (body.deployMode !== undefined) data.deployMode = body.deployMode;
     if (body.status !== undefined) data.status = body.status;
     await prisma.domain.update({ where: { id }, data });
     await logEvent({ userId: me.id, action: "domain.update", target: id, ip: getClientIp(req) });

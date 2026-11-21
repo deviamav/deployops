@@ -11,7 +11,7 @@ import { getClientIp, logEvent } from "@/lib/audit";
  * Дозволено:
  *   - admin: будь-який домен
  *   - team_lead: тільки видимі через visibilityWhere (свої + своєї команди)
- *   - buyer: тільки свої домени
+ *   - operator: тільки свої домени
  *
  * НЕ зачіпає інші поля — не дає team_lead'у змінити server/webRoot/ownerId.
  */
@@ -38,9 +38,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       where: { id: cur.id },
       data: {
         status: body.status,
-        // якщо позначаємо як cloaked вручну і lastCloakAt ще не виставлений — ставимо now()
-        ...(body.status === "deployed" && !cur.lastCloakAt
-          ? { lastCloakAt: new Date() }
+        // якщо позначаємо як deployed вручну і lastDeployAt ще не виставлений — ставимо now()
+        ...(body.status === "deployed" && !cur.lastDeployAt
+          ? { lastDeployAt: new Date() }
           : {}),
       },
     });

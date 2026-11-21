@@ -35,7 +35,7 @@ interface Row {
   name: string;
   flag: string | null;
   active: boolean;
-  _count: { landings: number; offers: number; cloakers: number; jobs: number };
+  _count: { landings: number; offers: number; entryScripts: number; jobs: number };
 }
 
 export default function GeosPage() {
@@ -172,7 +172,7 @@ export default function GeosPage() {
                 </TableCell>
                 <TableCell>{g._count.landings}</TableCell>
                 <TableCell>{g._count.offers}</TableCell>
-                <TableCell>{g._count.cloakers}</TableCell>
+                <TableCell>{g._count.entryScripts}</TableCell>
                 <TableCell>
                   <RowActions
                     maxVisible={3}

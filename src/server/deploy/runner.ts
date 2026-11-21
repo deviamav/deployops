@@ -14,15 +14,15 @@ interface RunInput {
  * (content pack only / template + content pack / gateway only), streams the log
  * through jobEvents and stores the final status in the DB.
  *
- * Note: Prisma models (CloakJob, CloakerScript, Offer, Landing) keep their legacy names;
+ * Note: Prisma models (DeployJob, EntryScript, Offer, Landing) keep their legacy names;
  * in the product they are Deploy Jobs, Entry Scripts, Content Packs and Templates.
  */
 export async function runDeployJob({ jobId }: RunInput): Promise<void> {
-  const job = await prisma.cloakJob.findUnique({
+  const job = await prisma.deployJob.findUnique({
     where: { id: jobId },
     include: {
       domain: { include: { server: { include: { setup: true } } } },
-      cloakerScript: true,
+      entryScript: true,
     },
   });
   if (!job) {
@@ -31,7 +31,7 @@ export async function runDeployJob({ jobId }: RunInput): Promise<void> {
     return;
   }
 
-  await prisma.cloakJob.update({
+  await prisma.deployJob.update({
     where: { id: jobId },
     data: { status: "running" },
   });
@@ -43,9 +43,9 @@ export async function runDeployJob({ jobId }: RunInput): Promise<void> {
     jobEvents.emitLine(jobId, stamped);
   };
 
-  emit(`▶ deploy start: ${job.domain.name} (${job.domain.cloakType})`);
+  emit(`▶ deploy start: ${job.domain.name} (${job.domain.deployMode})`);
   emit(`  server: ${job.domain.server.host}:${job.domain.server.port}`);
-  emit(`  entry script: ${job.cloakerScript.name}`);
+  emit(`  entry script: ${job.entryScript.name}`);
   emit(`  transfer: v2 (panel→shell)`);
 
   let ssh: NodeSSH | null = null;
@@ -56,19 +56,19 @@ export async function runDeployJob({ jobId }: RunInput): Promise<void> {
     ssh = await openSsh(job.domain.server);
     emit("  ✓ ssh connected");
 
-    const cloakerEngine =
-      job.cloakerScript.engine === "cubbe"
-        ? "cubbe"
-        : job.cloakerScript.engine === "palladium_redirect"
-          ? "palladium_redirect"
-          : "palladium";
+    const entryScriptEngine =
+      job.entryScript.engine === "html_gateway"
+        ? "html_gateway"
+        : job.entryScript.engine === "php_redirect"
+          ? "php_redirect"
+          : "php_gateway";
 
     const engine = new DeployEngine({
       ssh,
       domain: job.domain,
       webUser: job.domain.server.setup?.webUser ?? null,
       pixelPlatform: job.pixelPlatform,
-      cloakerEngine,
+      entryScriptEngine,
       emit,
       onOriginalIndexDetected: async (kind) => {
         await prisma.domain.update({
@@ -78,24 +78,24 @@ export async function runDeployJob({ jobId }: RunInput): Promise<void> {
       },
     });
 
-    const effectiveType = job.cloakType ?? job.domain.cloakType;
-    emit(`  type: ${effectiveType}${job.cloakType ? " (override)" : ""}`);
+    const effectiveType = job.deployMode ?? job.domain.deployMode;
+    emit(`  type: ${effectiveType}${job.deployMode ? " (override)" : ""}`);
     emit(`  analytics preset: ${job.pixelPlatform}`);
-    emit(`  layout: ${cloakerEngine}`);
+    emit(`  layout: ${entryScriptEngine}`);
 
     // Gateway-only layout: no template / content pack is uploaded — only content.php + the entry script.
-    if (cloakerEngine === "palladium_redirect") {
+    if (entryScriptEngine === "php_redirect") {
       await engine.deployPackOnly({
         offerZipPath: "",
-        cloakerScriptPath: job.cloakerScript.filePath,
+        entryScriptPath: job.entryScript.filePath,
       });
-    } else if (effectiveType === "offer_only") {
+    } else if (effectiveType === "pack_only") {
       if (!job.offerId) throw new Error("content pack is required for a full deploy");
       const offer = await prisma.offer.findUnique({ where: { id: job.offerId } });
       if (!offer) throw new Error(`content pack not found: ${job.offerId}`);
       await engine.deployPackOnly({
         offerZipPath: offer.filePath,
-        cloakerScriptPath: job.cloakerScript.filePath,
+        entryScriptPath: job.entryScript.filePath,
       });
     } else {
       if (!job.offerId) throw new Error("content pack is required for a full deploy");
@@ -110,7 +110,7 @@ export async function runDeployJob({ jobId }: RunInput): Promise<void> {
         landingZipPath: landing.filePath,
         offerZipPath: offer.filePath,
         landingName,
-        cloakerScriptPath: job.cloakerScript.filePath,
+        entryScriptPath: job.entryScript.filePath,
       });
     }
   } catch (e: any) {
@@ -125,7 +125,7 @@ export async function runDeployJob({ jobId }: RunInput): Promise<void> {
     }
   }
 
-  await prisma.cloakJob.update({
+  await prisma.deployJob.update({
     where: { id: jobId },
     data: {
       status,
@@ -137,7 +137,7 @@ export async function runDeployJob({ jobId }: RunInput): Promise<void> {
     where: { id: job.domainId },
     data: {
       status: status === "success" ? "deployed" : "failed",
-      lastCloakAt: status === "success" ? new Date() : undefined,
+      lastDeployAt: status === "success" ? new Date() : undefined,
     },
   });
   await logEvent({

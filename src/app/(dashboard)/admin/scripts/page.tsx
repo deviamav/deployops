@@ -37,7 +37,7 @@ interface Row {
   name: string;
   isDefault: boolean;
   notes: string | null;
-  engine: "palladium" | "palladium_redirect" | "cubbe";
+  engine: "php_gateway" | "php_redirect" | "html_gateway";
   uploadedAt: string;
   geoId: string;
   geo: { id: string; code: string; flag: string | null; name: string };
@@ -174,16 +174,16 @@ export default function EntryScriptsPage() {
                 <TableCell>
                   <Badge
                     variant={
-                      r.engine === "cubbe"
+                      r.engine === "html_gateway"
                         ? "cyan"
-                        : r.engine === "palladium_redirect"
+                        : r.engine === "php_redirect"
                           ? "warning"
                           : "secondary"
                     }
                   >
-                    {r.engine === "cubbe"
+                    {r.engine === "html_gateway"
                       ? "Split layout"
-                      : r.engine === "palladium_redirect"
+                      : r.engine === "php_redirect"
                         ? "Gateway only"
                         : "Standard layout"}
                   </Badge>
@@ -251,43 +251,43 @@ export default function EntryScriptsPage() {
       </Card>
 
       <AddScriptDialog open={addOpen} onOpenChange={setAddOpen} onCreated={load} />
-      <EditScriptDialog cloaker={editing} onClose={() => setEditing(null)} onSaved={load} />
+      <EditScriptDialog entryScript={editing} onClose={() => setEditing(null)} onSaved={load} />
     </div>
   );
 }
 
 function EditScriptDialog({
-  cloaker,
+  entryScript,
   onClose,
   onSaved,
 }: {
-  cloaker: Row | null;
+  entryScript: Row | null;
   onClose: () => void;
   onSaved: () => void;
 }) {
   const [name, setName] = useState("");
   const [notes, setNotes] = useState("");
-  const [engine, setEngine] = useState<"palladium" | "palladium_redirect" | "cubbe">(
-    "palladium",
+  const [engine, setEngine] = useState<"php_gateway" | "php_redirect" | "html_gateway">(
+    "php_gateway",
   );
   const [isDefault, setIsDefault] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (cloaker) {
-      setName(cloaker.name);
-      setNotes(cloaker.notes ?? "");
-      setEngine(cloaker.engine ?? "palladium");
-      setIsDefault(cloaker.isDefault);
+    if (entryScript) {
+      setName(entryScript.name);
+      setNotes(entryScript.notes ?? "");
+      setEngine(entryScript.engine ?? "php_gateway");
+      setIsDefault(entryScript.isDefault);
     }
-  }, [cloaker]);
+  }, [entryScript]);
 
-  if (!cloaker) return null;
+  if (!entryScript) return null;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    const res = await fetch(`/api/admin/scripts/${cloaker!.id}`, {
+    const res = await fetch(`/api/admin/scripts/${entryScript!.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, notes: notes || null, engine, isDefault }),
@@ -304,14 +304,14 @@ function EditScriptDialog({
   }
 
   return (
-    <Dialog open={!!cloaker} onOpenChange={(o) => !o && onClose()}>
+    <Dialog open={!!entryScript} onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Edit entry script</DialogTitle>
         </DialogHeader>
         <form className="space-y-4" onSubmit={submit}>
           <div className="text-sm text-zinc-400">
-            Geo: <GeoBadge flag={cloaker.geo.flag} code={cloaker.geo.code} name={cloaker.geo.name} />
+            Geo: <GeoBadge flag={entryScript.geo.flag} code={entryScript.geo.code} name={entryScript.geo.name} />
           </div>
           <div className="space-y-1.5">
             <Label>Name</Label>
@@ -324,7 +324,7 @@ function EditScriptDialog({
           <EngineSelect value={engine} onChange={setEngine} />
           <label className="flex items-center gap-2 text-sm">
             <Checkbox checked={isDefault} onCheckedChange={(v) => setIsDefault(!!v)} />
-            Default for {cloaker.geo.code}
+            Default for {entryScript.geo.code}
           </label>
           <DialogFooter>
             <Button type="button" variant="secondary" onClick={onClose}>
@@ -353,8 +353,8 @@ function AddScriptDialog({
   const [name, setName] = useState("");
   const [geoId, setGeoId] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
-  const [engine, setEngine] = useState<"palladium" | "palladium_redirect" | "cubbe">(
-    "palladium",
+  const [engine, setEngine] = useState<"php_gateway" | "php_redirect" | "html_gateway">(
+    "php_gateway",
   );
   const [isDefault, setIsDefault] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -388,7 +388,7 @@ function AddScriptDialog({
       onOpenChange(false);
       setFile(null);
       setName("");
-      setEngine("palladium");
+      setEngine("php_gateway");
       setIsDefault(false);
       onCreated();
     } else {
@@ -456,11 +456,11 @@ function EngineSelect({
   value,
   onChange,
 }: {
-  value: "palladium" | "palladium_redirect" | "cubbe";
-  onChange: (v: "palladium" | "palladium_redirect" | "cubbe") => void;
+  value: "php_gateway" | "php_redirect" | "html_gateway";
+  onChange: (v: "php_gateway" | "php_redirect" | "html_gateway") => void;
 }) {
   const btn = (
-    key: "palladium" | "palladium_redirect" | "cubbe",
+    key: "php_gateway" | "php_redirect" | "html_gateway",
     title: string,
     hint: string,
   ) => (
@@ -482,9 +482,9 @@ function EngineSelect({
     <div className="space-y-1.5">
       <Label>Layout</Label>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-        {btn("palladium", "Standard layout", "content.php · reffo/per")}
-        {btn("palladium_redirect", "Gateway only", "content.php · entry script only")}
-        {btn("cubbe", "Split layout", "index.php · offer/ · white/")}
+        {btn("php_gateway", "Standard layout", "content.php · reffo/per")}
+        {btn("php_redirect", "Gateway only", "content.php · entry script only")}
+        {btn("html_gateway", "Split layout", "index.php · offer/ · white/")}
       </div>
     </div>
   );

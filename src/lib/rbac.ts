@@ -61,7 +61,7 @@ type Entity = "landing" | "offer" | "domain" | "server" | "job" | "audit";
  * - admin → бачить усе.
  * - team_lead → лідерує одній чи кільком групам (`Group.teamLeadId === me.id`).
  *   Бачить свої власні сутності + сутності членів його груп.
- * - buyer → бачить тільки свої власні сутності (і public landing/offer без групи).
+ * - operator → бачить тільки свої власні сутності (і public landing/offer без групи).
  */
 export function visibilityWhere(user: SessionUser, entity: Entity): any {
   if (user.role === "admin") return {};

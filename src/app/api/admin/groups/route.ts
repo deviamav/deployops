@@ -9,7 +9,7 @@ export async function GET() {
     const me = await requireSession();
     const where: any = {};
     if (me.role === "team_lead") where.id = me.groupId ?? "__none__";
-    if (me.role === "buyer") where.id = me.groupId ?? "__none__";
+    if (me.role === "operator") where.id = me.groupId ?? "__none__";
     const groups = await prisma.group.findMany({
       where,
       orderBy: { createdAt: "desc" },

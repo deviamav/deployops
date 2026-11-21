@@ -55,7 +55,7 @@ const Schema = z
       .regex(/^\/[A-Za-z0-9._\-/]+$/u, "absolute posix path required")
       .refine((s) => !s.includes(".."), "no '..' allowed")
       .optional(),
-    cloakType: z.enum(["offer_only", "land_offer"]),
+    deployMode: z.enum(["pack_only", "template_and_pack"]),
     ownerId: z.string().optional(),
   })
   .strict();
@@ -84,7 +84,7 @@ export async function POST(req: Request) {
         serverId: body.serverId,
         name: body.name,
         webRoot,
-        cloakType: body.cloakType,
+        deployMode: body.deployMode,
         ownerId,
       },
     });

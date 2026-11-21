@@ -94,7 +94,7 @@ export async function POST(req: Request) {
               serverId,
               ownerId: effectiveOwnerId,
               webRoot: renderWebRoot(webRootTemplate, d),
-              cloakType: "offer_only",
+              deployMode: "pack_only",
             },
           });
           createdDomains++;

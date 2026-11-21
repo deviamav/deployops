@@ -13,7 +13,7 @@ export async function POST(req: Request) {
     const me = await requireRole("admin");
     const body = Schema.parse(await req.json());
     // не видаляємо default-скрипти масово бездумно — просто deleteMany
-    const result = await prisma.cloakerScript.deleteMany({
+    const result = await prisma.entryScript.deleteMany({
       where: { id: { in: body.ids } },
     });
     await logEvent({

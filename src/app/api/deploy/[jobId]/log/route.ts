@@ -3,7 +3,7 @@ import { requireSession, visibilityWhere } from "@/lib/rbac";
 import { DeployJobBus, jobEvents } from "@/server/deploy/jobs";
 
 /**
- * SSE-стрім live-логу cloak-job. Кожне повідомлення — JSON-рядок
+ * SSE-стрім live-логу deploy-job. Кожне повідомлення — JSON-рядок
  * `{ line: string }`. Завершальне — `{ done: true, status: "success" | "failed" }`.
  */
 export async function GET(
@@ -16,7 +16,7 @@ export async function GET(
   if (!me) {
     return new Response("unauthorized", { status: 401 });
   }
-  const job = await prisma.cloakJob.findFirst({
+  const job = await prisma.deployJob.findFirst({
     where: { id: jobId, ...visibilityWhere(me, "job") },
   });
   if (!job) {

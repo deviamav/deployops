@@ -15,7 +15,7 @@ export async function GET(req: Request) {
     const me = await requireSession();
     const url = new URL(req.url);
     const geoId = url.searchParams.get("geoId") ?? undefined;
-    const items = await prisma.cloakerScript.findMany({
+    const items = await prisma.entryScript.findMany({
       where: geoId ? { geoId } : {},
       orderBy: [{ isDefault: "desc" }, { uploadedAt: "desc" }],
       include: { geo: true },
@@ -44,9 +44,9 @@ const Schema = z.object({
   geoId: z.string().min(1),
   notes: z.string().optional().nullable(),
   engine: z
-    .enum(["palladium", "palladium_redirect", "cubbe"])
+    .enum(["php_gateway", "php_redirect", "html_gateway"])
     .optional()
-    .default("palladium"),
+    .default("php_gateway"),
   isDefault: z
     .union([z.boolean(), z.string()])
     .transform((v) => (typeof v === "string" ? v === "true" || v === "on" || v === "1" : v))
@@ -67,28 +67,28 @@ export async function POST(req: Request) {
       name: form.get("name"),
       geoId: form.get("geoId"),
       notes: form.get("notes") ?? undefined,
-      engine: form.get("engine") ?? "palladium",
+      engine: form.get("engine") ?? "php_gateway",
       isDefault: form.get("isDefault") ?? false,
     });
 
     const id = randomUUID();
-    const dest = path.join(PATHS.cloakers, `${id}.php`);
+    const dest = path.join(PATHS.entryScripts, `${id}.php`);
     const buf = Buffer.from(await file.arrayBuffer());
     await fs.writeFile(dest, buf);
 
     const created = await prisma.$transaction(async (tx) => {
       if (meta.isDefault) {
-        await tx.cloakerScript.updateMany({
+        await tx.entryScript.updateMany({
           where: { geoId: meta.geoId, isDefault: true },
           data: { isDefault: false },
         });
       }
-      return tx.cloakerScript.create({
+      return tx.entryScript.create({
         data: {
           name: meta.name,
           geoId: meta.geoId,
           notes: meta.notes ?? null,
-          engine: meta.engine ?? "palladium",
+          engine: meta.engine ?? "php_gateway",
           isDefault: meta.isDefault ?? false,
           filePath: dest,
         },

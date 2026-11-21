@@ -10,22 +10,22 @@ datasource db {
 enum Role {
   admin
   team_lead
-  buyer
+  operator
 }
 
-enum CloakType {
-  offer_only
-  land_offer
+enum DeployMode {
+  pack_only
+  template_and_pack
 }
 
 /// Движок розкладки файлів клоакера:
-/// palladium          — content.php + reffo/per (історичний)
-/// palladium_redirect — content.php + cloaker index.php (без оффера/ленду)
-/// cubbe              — index.php + offer/ + white/ (як у Cubbe)
-enum CloakerEngine {
-  palladium
-  palladium_redirect
-  cubbe
+/// php_gateway          — content.php + reffo/per (історичний)
+/// php_redirect — content.php + entryScript index.php (без оффера/ленду)
+/// html_gateway              — index.php + offer/ + white/ (як у Cubbe)
+enum EntryEngine {
+  php_gateway
+  php_redirect
+  html_gateway
 }
 
 /// Платформа пікселя / постбеку при rewrite оффера.
@@ -38,7 +38,7 @@ enum PixelPlatform {
   tiktok
 }
 
-enum CloakStatus {
+enum DeployJobStatus {
   queued
   running
   success
@@ -50,11 +50,11 @@ model User {
   email           String     @unique
   passwordHash    String
   name            String?
-  role            Role       @default(buyer)
+  role            Role       @default(operator)
   groupId         String?
   group           Group?     @relation(fields: [groupId], references: [id])
   /// Per-user fine-grained permissions. Для admin завжди true (логіка в RBAC).
-  /// Для team_lead/buyer за замовчуванням false — адмін явно вмикає у формі юзера.
+  /// Для team_lead/operator за замовчуванням false — адмін явно вмикає у формі юзера.
   canEditAssets     Boolean  @default(false)
   canDeleteAssets   Boolean  @default(false)
   canDownloadAssets Boolean  @default(false)
@@ -62,7 +62,7 @@ model User {
   createdAt       DateTime   @default(now())
   servers         Server[]
   domains         Domain[]
-  jobs            CloakJob[]
+  jobs            DeployJob[]
   uploadsLandings Landing[]  @relation("UploadedLandings")
   uploadsOffers   Offer[]    @relation("UploadedOffers")
   ledGroups       Group[]    @relation("GroupTeamLead")
@@ -89,8 +89,8 @@ model Geo {
   createdAt DateTime        @default(now())
   landings  Landing[]
   offers    Offer[]
-  cloakers  CloakerScript[]
-  jobs      CloakJob[]
+  entryScripts  EntryScript[]
+  jobs      DeployJob[]
 }
 
 model Server {
@@ -135,14 +135,14 @@ model Domain {
   owner         User       @relation(fields: [ownerId], references: [id])
   name          String     @unique
   webRoot       String
-  cloakType     CloakType
+  deployMode     DeployMode
   status        String     @default("pending")
-  /// Який індексний файл був до cloak: "html" | "php" | null (ще не клоачили).
-  /// Використовується при uncloak для коректного відновлення.
+  /// Який індексний файл був до deploy: "html" | "php" | null (ще не клоачили).
+  /// Використовується при undeploy для коректного відновлення.
   originalIndex String?
-  lastCloakAt   DateTime?
+  lastDeployAt   DateTime?
   createdAt     DateTime   @default(now())
-  jobs          CloakJob[]
+  jobs          DeployJob[]
 
   @@index([serverId])
   @@index([ownerId])
@@ -184,41 +184,41 @@ model Offer {
   @@index([groupId])
 }
 
-model CloakerScript {
+model EntryScript {
   id         String        @id @default(cuid())
   name       String
   geoId      String
   geo        Geo           @relation(fields: [geoId], references: [id])
   filePath   String
   notes      String?
-  /// palladium | palladium_redirect | cubbe
-  engine     CloakerEngine @default(palladium)
+  /// php_gateway | php_redirect | html_gateway
+  engine     EntryEngine @default(php_gateway)
   isDefault  Boolean       @default(false)
   uploadedAt DateTime      @default(now())
-  jobs       CloakJob[]
+  jobs       DeployJob[]
 
   @@index([geoId])
 }
 
-model CloakJob {
+model DeployJob {
   id              String        @id @default(cuid())
   domainId        String
   domain          Domain        @relation(fields: [domainId], references: [id], onDelete: Cascade)
   landingId       String?
-  /// null для palladium_redirect (офер на сервер не кладеться)
+  /// null для php_redirect (офер на сервер не кладеться)
   offerId         String?
   geoId           String
   geo             Geo           @relation(fields: [geoId], references: [id])
-  cloakerScriptId String
-  cloakerScript   CloakerScript @relation(fields: [cloakerScriptId], references: [id])
-  /// Override типу cloak для цієї конкретної джоби; null — береться з Domain.cloakType
-  cloakType       CloakType?
+  entryScriptId String
+  entryScript   EntryScript @relation(fields: [entryScriptId], references: [id])
+  /// Override типу deploy для цієї конкретної джоби; null — береться з Domain.deployMode
+  deployMode       DeployMode?
   /// Платформа пікселя для rewrite оффера (google/facebook/tiktok).
   pixelPlatform   PixelPlatform @default(google)
   landingName     String?
   startedById     String
   startedBy       User          @relation(fields: [startedById], references: [id])
-  status          CloakStatus   @default(queued)
+  status          DeployJobStatus   @default(queued)
   log             String        @default("")
   startedAt       DateTime      @default(now())
   finishedAt      DateTime?

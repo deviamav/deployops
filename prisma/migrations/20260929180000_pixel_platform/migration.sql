@@ -2,4 +2,4 @@
 CREATE TYPE "PixelPlatform" AS ENUM ('google', 'facebook', 'tiktok');
 
 -- AlterTable
-ALTER TABLE "CloakJob" ADD COLUMN "pixelPlatform" "PixelPlatform" NOT NULL DEFAULT 'google';
+ALTER TABLE "DeployJob" ADD COLUMN "pixelPlatform" "PixelPlatform" NOT NULL DEFAULT 'google';

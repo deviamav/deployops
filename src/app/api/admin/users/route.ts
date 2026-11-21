@@ -51,7 +51,7 @@ const CreateSchema = z
     email: z.string().email(),
     name: z.string().optional().nullable(),
     password: z.string().min(8),
-    role: z.enum(["admin", "team_lead", "buyer"]),
+    role: z.enum(["admin", "team_lead", "operator"]),
     groupId: z.string().optional().nullable(),
   })
   .merge(PermsSchema);

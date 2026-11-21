@@ -38,7 +38,7 @@ export function randomPassword(len = 16): string {
   return out;
 }
 
-/** Display label for a role. The DB enum keeps the legacy value `buyer`; the UI calls it `operator`. */
+/** Display label for a role. The DB enum keeps the legacy value `operator`; the UI calls it `operator`. */
 export function roleLabel(role: string): string {
-  return role === "buyer" ? "operator" : role;
+  return role === "operator" ? "operator" : role;
 }

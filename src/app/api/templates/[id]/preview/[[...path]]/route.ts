@@ -20,7 +20,7 @@ import {
  * для resolve-у відносних шляхів — або через redirect, або через
  * <base href> інжектований у HTML.
  *
- * PHP-файли віддаються як HTML БЕЗ виконання (це pre-cloak preview).
+ * PHP-файли віддаються як HTML БЕЗ виконання (це pre-deploy preview).
  */
 export async function GET(
   _req: Request,

@@ -8,7 +8,7 @@ import { getClientIp, logEvent } from "@/lib/audit";
 const PatchSchema = z.object({
   email: z.string().email().optional(),
   name: z.string().nullable().optional(),
-  role: z.enum(["admin", "team_lead", "buyer"]).optional(),
+  role: z.enum(["admin", "team_lead", "operator"]).optional(),
   groupId: z.string().nullable().optional(),
   password: z.string().min(8).optional(),
   canEditAssets: z.boolean().optional(),

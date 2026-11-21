@@ -6,7 +6,7 @@ import { DeployEngine } from "./engine";
 import { jobEvents } from "./jobs";
 
 /**
- * Ephemeral rollback jobs (not stored in the DB as CloakJob).
+ * Ephemeral rollback jobs (not stored in the DB as DeployJob).
  * Kept in memory only, to check access when a client attaches to the SSE stream.
  */
 interface RollbackJobInfo {
@@ -94,7 +94,7 @@ async function runRollback(
     where: { id: domain.id },
     data: {
       status: status === "success" ? "pending" : "failed",
-      lastCloakAt: null,
+      lastDeployAt: null,
       ...(status === "success" ? { originalIndex: null } : {}),
     },
   });

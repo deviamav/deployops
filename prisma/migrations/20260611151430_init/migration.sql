@@ -1,11 +1,11 @@
 -- CreateEnum
-CREATE TYPE "Role" AS ENUM ('admin', 'team_lead', 'buyer');
+CREATE TYPE "Role" AS ENUM ('admin', 'team_lead', 'operator');
 
 -- CreateEnum
-CREATE TYPE "CloakType" AS ENUM ('offer_only', 'land_offer');
+CREATE TYPE "DeployMode" AS ENUM ('pack_only', 'template_and_pack');
 
 -- CreateEnum
-CREATE TYPE "CloakStatus" AS ENUM ('queued', 'running', 'success', 'failed');
+CREATE TYPE "DeployJobStatus" AS ENUM ('queued', 'running', 'success', 'failed');
 
 -- CreateTable
 CREATE TABLE "User" (
@@ -13,7 +13,7 @@ CREATE TABLE "User" (
     "email" TEXT NOT NULL,
     "passwordHash" TEXT NOT NULL,
     "name" TEXT,
-    "role" "Role" NOT NULL DEFAULT 'buyer',
+    "role" "Role" NOT NULL DEFAULT 'operator',
     "groupId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -64,9 +64,9 @@ CREATE TABLE "Domain" (
     "ownerId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "webRoot" TEXT NOT NULL,
-    "cloakType" "CloakType" NOT NULL,
+    "deployMode" "DeployMode" NOT NULL,
     "status" TEXT NOT NULL DEFAULT 'pending',
-    "lastCloakAt" TIMESTAMP(3),
+    "lastDeployAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Domain_pkey" PRIMARY KEY ("id")
@@ -103,7 +103,7 @@ CREATE TABLE "Offer" (
 );
 
 -- CreateTable
-CREATE TABLE "CloakerScript" (
+CREATE TABLE "EntryScript" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "geoId" TEXT NOT NULL,
@@ -112,25 +112,25 @@ CREATE TABLE "CloakerScript" (
     "isDefault" BOOLEAN NOT NULL DEFAULT false,
     "uploadedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "CloakerScript_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "EntryScript_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "CloakJob" (
+CREATE TABLE "DeployJob" (
     "id" TEXT NOT NULL,
     "domainId" TEXT NOT NULL,
     "landingId" TEXT,
     "offerId" TEXT NOT NULL,
     "geoId" TEXT NOT NULL,
-    "cloakerScriptId" TEXT NOT NULL,
+    "entryScriptId" TEXT NOT NULL,
     "landingName" TEXT,
     "startedById" TEXT NOT NULL,
-    "status" "CloakStatus" NOT NULL DEFAULT 'queued',
+    "status" "DeployJobStatus" NOT NULL DEFAULT 'queued',
     "log" TEXT NOT NULL DEFAULT '',
     "startedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "finishedAt" TIMESTAMP(3),
 
-    CONSTRAINT "CloakJob_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "DeployJob_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -183,16 +183,16 @@ CREATE INDEX "Offer_geoId_idx" ON "Offer"("geoId");
 CREATE INDEX "Offer_groupId_idx" ON "Offer"("groupId");
 
 -- CreateIndex
-CREATE INDEX "CloakerScript_geoId_idx" ON "CloakerScript"("geoId");
+CREATE INDEX "EntryScript_geoId_idx" ON "EntryScript"("geoId");
 
 -- CreateIndex
-CREATE INDEX "CloakJob_domainId_idx" ON "CloakJob"("domainId");
+CREATE INDEX "DeployJob_domainId_idx" ON "DeployJob"("domainId");
 
 -- CreateIndex
-CREATE INDEX "CloakJob_startedById_idx" ON "CloakJob"("startedById");
+CREATE INDEX "DeployJob_startedById_idx" ON "DeployJob"("startedById");
 
 -- CreateIndex
-CREATE INDEX "CloakJob_status_idx" ON "CloakJob"("status");
+CREATE INDEX "DeployJob_status_idx" ON "DeployJob"("status");
 
 -- CreateIndex
 CREATE INDEX "AuditEvent_userId_idx" ON "AuditEvent"("userId");
@@ -234,19 +234,19 @@ ALTER TABLE "Offer" ADD CONSTRAINT "Offer_groupId_fkey" FOREIGN KEY ("groupId") 
 ALTER TABLE "Offer" ADD CONSTRAINT "Offer_uploadedById_fkey" FOREIGN KEY ("uploadedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "CloakerScript" ADD CONSTRAINT "CloakerScript_geoId_fkey" FOREIGN KEY ("geoId") REFERENCES "Geo"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "EntryScript" ADD CONSTRAINT "EntryScript_geoId_fkey" FOREIGN KEY ("geoId") REFERENCES "Geo"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "CloakJob" ADD CONSTRAINT "CloakJob_domainId_fkey" FOREIGN KEY ("domainId") REFERENCES "Domain"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "DeployJob" ADD CONSTRAINT "DeployJob_domainId_fkey" FOREIGN KEY ("domainId") REFERENCES "Domain"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "CloakJob" ADD CONSTRAINT "CloakJob_geoId_fkey" FOREIGN KEY ("geoId") REFERENCES "Geo"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "DeployJob" ADD CONSTRAINT "DeployJob_geoId_fkey" FOREIGN KEY ("geoId") REFERENCES "Geo"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "CloakJob" ADD CONSTRAINT "CloakJob_cloakerScriptId_fkey" FOREIGN KEY ("cloakerScriptId") REFERENCES "CloakerScript"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "DeployJob" ADD CONSTRAINT "DeployJob_entryScriptId_fkey" FOREIGN KEY ("entryScriptId") REFERENCES "EntryScript"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "CloakJob" ADD CONSTRAINT "CloakJob_startedById_fkey" FOREIGN KEY ("startedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "DeployJob" ADD CONSTRAINT "DeployJob_startedById_fkey" FOREIGN KEY ("startedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "AuditEvent" ADD CONSTRAINT "AuditEvent_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;

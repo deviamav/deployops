@@ -9,7 +9,7 @@ import { DEFAULT_WEB_ROOT_TEMPLATE, renderWebRoot } from "@/lib/server-setup";
 const Schema = z.object({
   text: z.string().min(1),
   defaultServerId: z.string().min(1),
-  defaultCloakType: z.enum(["offer_only", "land_offer"]),
+  defaultDeployMode: z.enum(["pack_only", "template_and_pack"]),
   ownerId: z.string().optional(),
 });
 
@@ -53,7 +53,7 @@ export async function POST(req: Request) {
             serverId: body.defaultServerId,
             ownerId,
             webRoot: renderWebRoot(webRootTemplate, r.name),
-            cloakType: body.defaultCloakType,
+            deployMode: body.defaultDeployMode,
           },
         });
         created++;

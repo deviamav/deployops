@@ -31,11 +31,11 @@ interface JobRow {
   status: "queued" | "running" | "success" | "failed";
   startedAt: string;
   finishedAt: string | null;
-  domain: { id: string; name: string; cloakType: string };
-  cloakType?: string | null;
+  domain: { id: string; name: string; deployMode: string };
+  deployMode?: string | null;
   pixelPlatform?: string | null;
   geo: { code: string; flag: string | null };
-  cloakerScript: { name: string };
+  entryScript: { name: string };
   startedBy: { email: string };
   landingId: string | null;
   offerId: string | null;
@@ -55,8 +55,8 @@ export default function HistoryPage() {
       j.geo.code,
       j.status,
       j.startedBy.email,
-      j.cloakerScript.name,
-      j.cloakType ?? j.domain.cloakType,
+      j.entryScript.name,
+      j.deployMode ?? j.domain.deployMode,
       j.pixelPlatform,
     ],
     [],
@@ -123,10 +123,10 @@ export default function HistoryPage() {
                 <TableCell>
                   <Badge
                     variant={
-                      (j.cloakType ?? j.domain.cloakType) === "offer_only" ? "secondary" : "cyan"
+                      (j.deployMode ?? j.domain.deployMode) === "pack_only" ? "secondary" : "cyan"
                     }
                   >
-                    {(j.cloakType ?? j.domain.cloakType) === "offer_only"
+                    {(j.deployMode ?? j.domain.deployMode) === "pack_only"
                       ? "pack"
                       : "template+pack"}
                   </Badge>
@@ -140,7 +140,7 @@ export default function HistoryPage() {
                   </Badge>
                 </TableCell>
                 <TableCell className="text-xs">
-                  <Truncate className="max-w-[140px]">{j.cloakerScript.name}</Truncate>
+                  <Truncate className="max-w-[140px]">{j.entryScript.name}</Truncate>
                 </TableCell>
                 <TableCell className="text-xs">
                   <Truncate className="max-w-[160px]" title={j.startedBy.email}>

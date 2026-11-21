@@ -57,7 +57,7 @@ export async function middleware(req: NextRequest) {
       pathname.startsWith("/api/admin/setups") ||
       pathname.startsWith("/api/admin/groups") ||
       // /api/admin/users теж читаємо як «довідник власників» — сам API
-      // обмежує payload, повертаючи мінімум для tl/buyer.
+      // обмежує payload, повертаючи мінімум для tl/operator.
       pathname === "/api/admin/users");
 
   const adminOnly =

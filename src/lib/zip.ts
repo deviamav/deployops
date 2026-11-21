@@ -72,7 +72,7 @@ export function sanitizeZipBuffer(buffer: Buffer): Buffer {
   try {
     return sanitizeZipBufferInner(buffer);
   } catch {
-    // Ніколи не валимо cloak через adm-zip.
+    // Ніколи не валимо deploy через adm-zip.
     return buffer;
   }
 }

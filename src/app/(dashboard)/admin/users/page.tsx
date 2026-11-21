@@ -45,7 +45,7 @@ interface Row {
   id: string;
   email: string;
   name: string | null;
-  role: "admin" | "team_lead" | "buyer";
+  role: "admin" | "team_lead" | "operator";
   group: { id: string; name: string } | null;
   createdAt: string;
   canEditAssets: boolean;
@@ -241,7 +241,7 @@ function AddUserDialog({
     email: "",
     name: "",
     password: randomPassword(14),
-    role: "buyer" as "admin" | "team_lead" | "buyer",
+    role: "operator" as "admin" | "team_lead" | "operator",
     groupId: null as string | null,
     teamLeadId: null as string | null,
     canEditAssets: false,
@@ -257,7 +257,7 @@ function AddUserDialog({
         email: "",
         name: "",
         password: randomPassword(14),
-        role: "buyer",
+        role: "operator",
         groupId: null,
         teamLeadId: null,
         canEditAssets: false,
@@ -358,7 +358,7 @@ function AddUserDialog({
                   setForm({
                     ...form,
                     role: v as any,
-                    teamLeadId: v === "buyer" ? form.teamLeadId : null,
+                    teamLeadId: v === "operator" ? form.teamLeadId : null,
                   })
                 }
               >
@@ -368,11 +368,11 @@ function AddUserDialog({
                 <SelectContent>
                   <SelectItem value="admin">admin</SelectItem>
                   <SelectItem value="team_lead">team_lead</SelectItem>
-                  <SelectItem value="buyer">operator</SelectItem>
+                  <SelectItem value="operator">operator</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            {form.role === "buyer" ? (
+            {form.role === "operator" ? (
               <div className="space-y-1.5">
                 <Label>Team lead</Label>
                 <TeamLeadSelect
@@ -391,7 +391,7 @@ function AddUserDialog({
                 />
               </div>
             )}
-            {form.role === "buyer" && (
+            {form.role === "operator" && (
               <div className="col-span-2 space-y-1.5">
                 <Label>Group (auto from team lead, or choose manually)</Label>
                 <GroupSelect
@@ -508,7 +508,7 @@ function EditUserDialog({
   const [form, setForm] = useState({
     email: "",
     name: "",
-    role: "buyer" as "admin" | "team_lead" | "buyer",
+    role: "operator" as "admin" | "team_lead" | "operator",
     groupId: null as string | null,
     teamLeadId: null as string | null,
     password: "",
@@ -533,7 +533,7 @@ function EditUserDialog({
         canDownloadAssets: user.canDownloadAssets ?? false,
         canViewAssetCode: user.canViewAssetCode ?? false,
       });
-      if (user.role === "buyer" && user.group?.id) {
+      if (user.role === "operator" && user.group?.id) {
         fetch("/api/admin/groups")
           .then((r) => r.json())
           .then((groups) => {
@@ -621,7 +621,7 @@ function EditUserDialog({
                   setForm({
                     ...form,
                     role: v as any,
-                    teamLeadId: v === "buyer" ? form.teamLeadId : null,
+                    teamLeadId: v === "operator" ? form.teamLeadId : null,
                   })
                 }
               >
@@ -631,11 +631,11 @@ function EditUserDialog({
                 <SelectContent>
                   <SelectItem value="admin">admin</SelectItem>
                   <SelectItem value="team_lead">team_lead</SelectItem>
-                  <SelectItem value="buyer">operator</SelectItem>
+                  <SelectItem value="operator">operator</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            {form.role === "buyer" ? (
+            {form.role === "operator" ? (
               <div className="space-y-1.5">
                 <Label>Team lead</Label>
                 <TeamLeadSelect
@@ -654,7 +654,7 @@ function EditUserDialog({
                 />
               </div>
             )}
-            {form.role === "buyer" && (
+            {form.role === "operator" && (
               <div className="col-span-2 space-y-1.5">
                 <Label>Group</Label>
                 <GroupSelect
