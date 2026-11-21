@@ -1,0 +1,243 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  admin
+  team_lead
+  buyer
+}
+
+enum CloakType {
+  offer_only
+  land_offer
+}
+
+/// Движок розкладки файлів клоакера:
+/// palladium          — content.php + reffo/per (історичний)
+/// palladium_redirect — content.php + cloaker index.php (без оффера/ленду)
+/// cubbe              — index.php + offer/ + white/ (як у Cubbe)
+enum CloakerEngine {
+  palladium
+  palladium_redirect
+  cubbe
+}
+
+/// Платформа пікселя / постбеку при rewrite оффера.
+/// google  — api.php → Google, thanks.php → gtag (дефолт історичний)
+/// facebook — api.php і thanks.php НЕ чіпаємо (FB pixel лишається)
+/// tiktok  — api.php не чіпаємо; thanks/bn → TikTok Pixel з ?pixel=
+enum PixelPlatform {
+  google
+  facebook
+  tiktok
+}
+
+enum CloakStatus {
+  queued
+  running
+  success
+  failed
+}
+
+model User {
+  id              String     @id @default(cuid())
+  email           String     @unique
+  passwordHash    String
+  name            String?
+  role            Role       @default(buyer)
+  groupId         String?
+  group           Group?     @relation(fields: [groupId], references: [id])
+  /// Per-user fine-grained permissions. Для admin завжди true (логіка в RBAC).
+  /// Для team_lead/buyer за замовчуванням false — адмін явно вмикає у формі юзера.
+  canEditAssets     Boolean  @default(false)
+  canDeleteAssets   Boolean  @default(false)
+  canDownloadAssets Boolean  @default(false)
+  canViewAssetCode  Boolean  @default(false)
+  createdAt       DateTime   @default(now())
+  servers         Server[]
+  domains         Domain[]
+  jobs            CloakJob[]
+  uploadsLandings Landing[]  @relation("UploadedLandings")
+  uploadsOffers   Offer[]    @relation("UploadedOffers")
+  ledGroups       Group[]    @relation("GroupTeamLead")
+  auditEvents     AuditEvent[]
+}
+
+model Group {
+  id         String    @id @default(cuid())
+  name       String    @unique
+  teamLeadId String?
+  teamLead   User?     @relation("GroupTeamLead", fields: [teamLeadId], references: [id])
+  createdAt  DateTime  @default(now())
+  users      User[]
+  landings   Landing[]
+  offers     Offer[]
+}
+
+model Geo {
+  id        String          @id @default(cuid())
+  code      String          @unique
+  name      String
+  flag      String?
+  active    Boolean         @default(true)
+  createdAt DateTime        @default(now())
+  landings  Landing[]
+  offers    Offer[]
+  cloakers  CloakerScript[]
+  jobs      CloakJob[]
+}
+
+model Server {
+  id                String       @id @default(cuid())
+  name              String
+  host              String
+  port              Int          @default(22)
+  username          String       @default("root")
+  passwordEncrypted String
+  notes             String?
+  ownerId           String
+  owner             User         @relation(fields: [ownerId], references: [id])
+  setupId           String?
+  setup             ServerSetup? @relation(fields: [setupId], references: [id])
+  createdAt         DateTime     @default(now())
+  domains           Domain[]
+
+  @@index([host])
+  @@index([ownerId])
+  @@index([setupId])
+}
+
+/// Тип «сетапу» сервера: визначає шаблон webRoot, який підставляється
+/// при створенні домена, а також (опційно) системного користувача,
+/// під яким крутиться веб (для chown).
+model ServerSetup {
+  id              String   @id @default(cuid())
+  key             String   @unique
+  name            String
+  webRootTemplate String
+  webUser         String?
+  isBuiltin       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  servers         Server[]
+}
+
+model Domain {
+  id            String     @id @default(cuid())
+  serverId      String
+  server        Server     @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  ownerId       String
+  owner         User       @relation(fields: [ownerId], references: [id])
+  name          String     @unique
+  webRoot       String
+  cloakType     CloakType
+  status        String     @default("pending")
+  /// Який індексний файл був до cloak: "html" | "php" | null (ще не клоачили).
+  /// Використовується при uncloak для коректного відновлення.
+  originalIndex String?
+  lastCloakAt   DateTime?
+  createdAt     DateTime   @default(now())
+  jobs          CloakJob[]
+
+  @@index([serverId])
+  @@index([ownerId])
+}
+
+model Landing {
+  id               String   @id @default(cuid())
+  name             String
+  originalFilename String
+  filePath         String
+  sizeBytes        Int
+  geoId            String
+  geo              Geo      @relation(fields: [geoId], references: [id])
+  groupId          String?
+  group            Group?   @relation(fields: [groupId], references: [id])
+  uploadedById     String
+  uploadedBy       User     @relation("UploadedLandings", fields: [uploadedById], references: [id])
+  uploadedAt       DateTime @default(now())
+
+  @@index([geoId])
+  @@index([groupId])
+}
+
+model Offer {
+  id               String   @id @default(cuid())
+  name             String
+  originalFilename String
+  filePath         String
+  sizeBytes        Int
+  geoId            String
+  geo              Geo      @relation(fields: [geoId], references: [id])
+  groupId          String?
+  group            Group?   @relation(fields: [groupId], references: [id])
+  uploadedById     String
+  uploadedBy       User     @relation("UploadedOffers", fields: [uploadedById], references: [id])
+  uploadedAt       DateTime @default(now())
+
+  @@index([geoId])
+  @@index([groupId])
+}
+
+model CloakerScript {
+  id         String        @id @default(cuid())
+  name       String
+  geoId      String
+  geo        Geo           @relation(fields: [geoId], references: [id])
+  filePath   String
+  notes      String?
+  /// palladium | palladium_redirect | cubbe
+  engine     CloakerEngine @default(palladium)
+  isDefault  Boolean       @default(false)
+  uploadedAt DateTime      @default(now())
+  jobs       CloakJob[]
+
+  @@index([geoId])
+}
+
+model CloakJob {
+  id              String        @id @default(cuid())
+  domainId        String
+  domain          Domain        @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  landingId       String?
+  /// null для palladium_redirect (офер на сервер не кладеться)
+  offerId         String?
+  geoId           String
+  geo             Geo           @relation(fields: [geoId], references: [id])
+  cloakerScriptId String
+  cloakerScript   CloakerScript @relation(fields: [cloakerScriptId], references: [id])
+  /// Override типу cloak для цієї конкретної джоби; null — береться з Domain.cloakType
+  cloakType       CloakType?
+  /// Платформа пікселя для rewrite оффера (google/facebook/tiktok).
+  pixelPlatform   PixelPlatform @default(google)
+  landingName     String?
+  startedById     String
+  startedBy       User          @relation(fields: [startedById], references: [id])
+  status          CloakStatus   @default(queued)
+  log             String        @default("")
+  startedAt       DateTime      @default(now())
+  finishedAt      DateTime?
+
+  @@index([domainId])
+  @@index([startedById])
+  @@index([status])
+}
+
+model AuditEvent {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String
+  target    String?
+  meta      Json?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}

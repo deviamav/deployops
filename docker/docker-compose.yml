@@ -1,0 +1,60 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: deployops_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: deployops
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD not set in .env}
+      POSTGRES_DB: deployops
+    ports:
+      # IMPORTANT: keep the 127.0.0.1 prefix — otherwise Docker publishes the port on
+      # 0.0.0.0 (the whole internet), and with a weak password that is a direct path to
+      # remote code execution. DO NOT remove the prefix.
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U deployops -d deployops"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: deployops_pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@example.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    ports:
+      # local only — exposing pgAdmin without HTTPS/2FA is unsafe
+      - "127.0.0.1:5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # Optional for production (for development use `pnpm dev` locally):
+  # app:
+  #   build: ..
+  #   container_name: deployops_app
+  #   restart: unless-stopped
+  #   environment:
+  #     DATABASE_URL: postgresql://deployops:${POSTGRES_PASSWORD}@postgres:5432/deployops
+  #     NEXTAUTH_URL: http://localhost:3000
+  #     NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+  #     DEPLOYOPS_SECRET_KEY: ${DEPLOYOPS_SECRET_KEY}
+  #   ports:
+  #     - "3000:3000"
+  #   volumes:
+  #     - ../uploads:/app/uploads
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+
+volumes:
+  postgres_data:
+  pgadmin_data:
